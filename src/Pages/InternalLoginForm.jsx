@@ -12,16 +12,24 @@ const InternalLoginForm = () => {
     const [error, setError] = useState({});
 
     const handleChange = (event) => {
-        const { name, value } = event.target;
+        const { name, value, type, checked } = event.target;
 
-        // Remove spaces from employee_id and convert to uppercase
-        const updatedValue = name === 'employee_id' ? value.replace(/\s+/g, '').toUpperCase() : value;
+        let updatedValue;
+
+        if (type === 'checkbox') {
+            updatedValue = checked;
+        } else if (name === 'employee_id') {
+            updatedValue = value.replace(/\s+/g, '').toUpperCase();
+        } else {
+            updatedValue = value;
+        }
 
         setFormData((prev) => ({
             ...prev,
             [name]: updatedValue,
         }));
     };
+
 
     const admin_id = JSON.parse(localStorage.getItem("admin"))?.id;
     const storedToken = localStorage.getItem("_token");
@@ -149,6 +157,8 @@ const InternalLoginForm = () => {
                         role: '',
                         id: '',
                         status: '',
+                        is_report_generator: '',
+                        is_qc_verifier: '',
                         service_ids: "",
                     });
                     fetchAdminOptions();
@@ -197,6 +207,8 @@ const InternalLoginForm = () => {
             role: '',
             id: '',
             status: '',
+            is_report_generator: '',
+            is_qc_verifier: '',
             service_ids: "",
         });
         setError({});
@@ -381,6 +393,14 @@ const InternalLoginForm = () => {
                     </div>
 
                 )}
+
+                <div className='flex gap-4 mb-5'>
+
+                    <div className='flex gap-3 items-center'><input type="checkbox" checked={['1', 1, true, 'true'].includes(formData.is_report_generator)}
+                        onChange={handleChange} name="is_report_generator" value={formData.is_report_generator} id="is_report_generator" /><label htmlFor="is_report_generator">Report Generator</label></div>
+                    <div className='flex gap-3 items-center'><input type="checkbox" checked={['1', 1, true, 'true'].includes(formData.is_qc_verifier)}
+                        onChange={handleChange} value={formData.is_qc_verifier} name="is_qc_verifier" id="is_qc_verifier" /><label htmlFor="is_qc_verifier">Qc Verifier</label></div>
+                </div>
                 <button type="submit" disabled={loading || isApiLoading} className={`w-full rounded-md p-3 text-white ${loading || isApiLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-[#3e76a5] hover:bg-[#3e76a5]'}`}
                 >Send</button>
                 <button type="button" onClick={emptyForm} className='bg-blue-400 hover:bg-blue-800 text-white p-3 mt-5 rounded-md w-full'>Reset Form</button>

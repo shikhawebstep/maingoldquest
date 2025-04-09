@@ -15,6 +15,8 @@ const GenerateReport = () => {
     const [sortingOrder, setSortingOrder] = useState([]);
     const [applications, setApplications] = useState([]);
     const [adminNames, setAdminNames] = useState([]);
+    const [reportGeneratorAdminNames, setReportGeneratorAdminNames] = useState([]);
+    const [qCVerifierAdminNames, setQCVerifierAdminNames] = useState([]);
     const [selectedHour, setSelectedHour] = useState("");
     const [selectedMinute, setSelectedMinute] = useState("");
     const [selectedPeriod, setSelectedPeriod] = useState("");
@@ -120,7 +122,7 @@ const GenerateReport = () => {
     const showInstaDrugTest = useMemo(() => {
         return (
             formData?.updated_json?.insta_drug_test &&
-            Array.isArray(servicesDataInfo) && 
+            Array.isArray(servicesDataInfo) &&
             servicesDataInfo.some(
                 (service) =>
                     service?.reportFormJson &&
@@ -128,8 +130,7 @@ const GenerateReport = () => {
             )
         );
     }, [servicesDataInfo, formData?.updated_json?.insta_drug_test]);
-    console.log('servicesDataInfo',servicesDataInfo)
-    
+
 
     useEffect(() => {
         if (Array.isArray(servicesDataInfo) && servicesDataInfo.length > 0) {
@@ -329,7 +330,8 @@ const GenerateReport = () => {
                 fetchServicesJson(services, applicationData); // Fetch services JSON
                 setBranchInfo(result.branchInfo); // Set branch info
                 setCustomerInfo(result.customerInfo); // Set customer info
-                setAdminNames(result.admins); // Set admin names
+                setReportGeneratorAdminNames(result.reportGenerationTeam); // Set admin names
+                setQCVerifierAdminNames(result.qcVerificationTeam); // Set admin names
 
                 // Set the form data
                 // Helper function to validate and format dates
@@ -596,75 +598,78 @@ const GenerateReport = () => {
                 return orderA - orderB;
             });
 
-            const rawSortedFilteredResults = sortedFilteredResults
-            ? sortedFilteredResults.map((serviceData, index) => {
-                if (serviceData.serviceStatus) {
-                    const formJson = JSON.parse(serviceData.reportFormJson.json);
-        
-                    formJson.rows.forEach((row, idx) => {
-                        row.inputs.forEach((input, i) => {
-                            let inputValue = '';
-        
-                            // Ensure `annexureData` exists
-                            if (!serviceData.annexureData) {
-                                serviceData.annexureData = {};
-                            }
-        
-                            // Ensure `input.name` exists in `annexureData`
-                            if (!serviceData.annexureData.hasOwnProperty(input.name)) {
-                                serviceData.annexureData[input.name] = ''; // Initialize if not present
-                            }
-        
-                            // Assign value from `annexureData` if it exists
-                            inputValue = serviceData.annexureData[input.name];
-        
-                            // Assign from applications if `inputValue` is still empty
-                            if (!inputValue) {
-                                const label = input.label.toLowerCase();
-        
-                                if (
-                                    (label.includes('name') && label.includes('candidate')) ||
-                                    (label.includes('name') && label.includes('applicant'))
-                                ) {
-                                    inputValue = rawApplicationData?.name || '';
-                                } else if (
-                                    (label.includes('employee') && label.includes('id')) ||
-                                    (label.includes('emp') && label.includes('code'))
-                                ) {
-                                    inputValue = rawApplicationData?.employee_id || '';
-                                } else if (
-                                    (label.includes('application') && label.includes('id')) ||
-                                    (label.includes('emp') && label.includes('id'))
-                                ) {
-                                    inputValue = rawApplicationData?.application_id || '';
+            const rawSortedFilteredResults = Array.isArray(sortedFilteredResults)
+                ? sortedFilteredResults.map((serviceData) => {
+                    if (!serviceData.serviceStatus) return serviceData;
+
+                    try {
+                        const formJson = JSON.parse(serviceData?.reportFormJson?.json || '{}');
+
+                        formJson.rows?.forEach((row) => {
+                            row.inputs?.forEach((input) => {
+                                let inputValue = '';
+
+                                // Ensure `annexureData` exists
+                                if (!serviceData.annexureData) {
+                                    serviceData.annexureData = {};
                                 }
-                            }
-        
-                            // ✅ Corrected dropdown handling
-                            if (input.type === "dropdown") {
-                                inputValue = inputValue || input.options?.find((option) => option.selected)?.value || "";
-                            }
-        
-                            // Assign the final `inputValue`
-                            serviceData.annexureData[input.name] = inputValue;
+
+                                // Initialize if input name is not present
+                                if (!Object.prototype.hasOwnProperty.call(serviceData.annexureData, input.name)) {
+                                    serviceData.annexureData[input.name] = '';
+                                }
+
+                                // Use annexureData value
+                                inputValue = serviceData.annexureData[input.name];
+
+                                // Fallback to application data if empty
+                                if (!inputValue) {
+                                    const label = input?.label?.toLowerCase() || '';
+
+                                    if (label.includes('name') && (label.includes('candidate') || label.includes('applicant'))) {
+                                        inputValue = rawApplicationData?.name || '';
+                                    } else if ((label.includes('employee') && label.includes('id')) || (label.includes('emp') && label.includes('code'))) {
+                                        inputValue = rawApplicationData?.employee_id || '';
+                                    } else if ((label.includes('application') && label.includes('id')) || (label.includes('emp') && label.includes('id'))) {
+                                        inputValue = rawApplicationData?.application_id || '';
+                                    }
+                                }
+
+                                // Handle dropdown default value
+                                if (input.type === "dropdown") {
+                                    inputValue = inputValue || input.options?.find((option) => option.selected)?.value || '';
+                                }
+                                if (input.type === "datepicker" && formJson.db_table == "insta_drug_test") {
+                                    const currentDate = new Date().toISOString().split("T")[0];
+                                    inputValue = inputValue || (input.value === "currentData" ? currentDate : '');
+                                }
+
+                                // Assign the final value back
+                                serviceData.annexureData[input.name] = inputValue;
+                            });
                         });
-                    });
-                }
-                return serviceData; // Ensure the modified object is returned
-            })
-            : [];
-        
+
+                    } catch (error) {
+                        console.error('Error parsing reportFormJson:', error);
+                    }
+
+                    return serviceData;
+                })
+                : [];
+
+
 
             setServicesDataInfo(rawSortedFilteredResults); // Set service data
 
-            const servicesLength = sortedFilteredResults.length;
+            const servicesLength = sortedFilteredResults?.length || 0;
+
             const isDrugExist = Array.isArray(sortedFilteredResults) && sortedFilteredResults.some(service => {
                 try {
-                    const serviceJson = JSON.parse(service.reportFormJson.json);
+                    const serviceJson = JSON.parse(service?.reportFormJson?.json || '{}');
                     return serviceJson.db_table === "insta_drug_test";
                 } catch (error) {
-                    console.error("Error parsing JSON:", error);
-                    return false; // Return false if there's an error parsing JSON
+                    console.error("Error parsing service JSON:", error);
+                    return false;
                 }
             });
 
@@ -673,10 +678,11 @@ const GenerateReport = () => {
                     ...prevFormData,
                     updated_json: {
                         ...prevFormData.updated_json,
-                        insta_drug_test: true,  // Set insta_drug_test to true if conditions match
+                        insta_drug_test: true,
                     },
                 }));
             }
+
 
             return sortedFilteredResults;
 
@@ -877,7 +883,6 @@ const GenerateReport = () => {
 
         setServicesDataInfo((prev) => {
             const updatedServicesDataInfo = [...prev];
-
             // Parse the JSON structure stored in reportFormJson
             const reportFormJson = JSON.parse(updatedServicesDataInfo[index].reportFormJson.json);
 
@@ -933,8 +938,6 @@ const GenerateReport = () => {
                 };
 
             }
-
-
             return updatedServicesDataInfo;
         });
     }, []);
@@ -985,16 +988,13 @@ const GenerateReport = () => {
                 );
 
             case "datepicker":
-                const currentDate = new Date().toISOString().split("T")[0];
-                const dateValue = inputValue || (input.value === "currentData" ? currentDate : '');
-
                 return (
                     <>
                         <label className='text-sm'>{input.label}</label>
                         <input
                             type="date"
                             name={input.name}
-                            value={dateValue}
+                            value={inputValue}
                             className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             onChange={(e) => handleInputChange(e, input, index)}
                             onBlur={(e) => handleFocusOut(e, index)}
@@ -1049,19 +1049,25 @@ const GenerateReport = () => {
                 );
 
             case "dropdown":
+                // Check if the current value exists in the options
+                const isValueInOptions = input.options?.some(option => option.value === inputValue);
+
+                // Create a new array of options including the current value if it's missing
+                const updatedOptions = isValueInOptions
+                    ? input.options
+                    : [...(input.options || []), { value: inputValue, showText: inputValue }];
+
                 return (
                     <>
                         <label className="text-sm">{input.label}</label>
                         <select
                             name={input.name}
-                            value={
-                                inputValue || ""
-                            }
+                            value={inputValue || ""}
                             className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             onChange={(e) => handleInputChange(e, input, index)}
                             onBlur={(e) => handleFocusOut(e, index)}
                         >
-                            {input.options?.map((option) => (
+                            {updatedOptions.map((option) => (
                                 <option key={option.value} value={option.value}>
                                     {option.showText}
                                 </option>
@@ -2040,36 +2046,38 @@ const GenerateReport = () => {
                                 </div>
                             </div>
                             <div className="grid md:grid-cols-2 grid-cols-1 gap-3">
-                                <div className="mb-4 ">
-                                    <label className='capitalize text-gray-500' htmlFor="Report Generated By:">Report Generated By:</label>
-                                    <select name="updated_json.insuffDetails.report_generate_by"
-                                        value={formData.updated_json.insuffDetails.report_generate_by}
+                                <div className="mb-4">
+                                    <label className='capitalize text-gray-500' htmlFor="report_generate_by">Report Generated By:</label>
+                                    <select
+                                        name="updated_json.insuffDetails.report_generate_by"
+                                        value={formData?.updated_json?.insuffDetails?.report_generate_by ?? ""}
                                         onChange={handleChange}
-                                        id="" className="border w-full rounded-md p-2 mt-2 capitalize">
+                                        id="report_generate_by"
+                                        className="border w-full rounded-md p-2 mt-2 capitalize"
+                                    >
                                         <option value="">Select Admin</option>
-                                        {adminNames.map((spoc, index) => (
+                                        {reportGeneratorAdminNames.map((spoc, index) => (
                                             <option key={index} value={spoc.id}>{spoc.name}</option>
                                         ))}
-
-
                                     </select>
-
                                 </div>
-                                <div className="mb-4 ">
-                                    <label className='capitalize block text-gray-500' htmlFor="QC Done By:">QC Done By:</label>
 
-                                    <select name="updated_json.insuffDetails.qc_done_by"
-                                        value={formData.updated_json.insuffDetails.qc_done_by}
+                                <div className="mb-4">
+                                    <label className='capitalize block text-gray-500' htmlFor="qc_done_by">QC Done By:</label>
+                                    <select
+                                        name="updated_json.insuffDetails.qc_done_by"
+                                        value={formData?.updated_json?.insuffDetails?.qc_done_by ?? ""}
                                         onChange={handleChange}
-                                        id="" className="border w-full rounded-md p-2 mt-2 capitalize">
+                                        id="qc_done_by"
+                                        className="border w-full rounded-md p-2 mt-2 capitalize"
+                                    >
                                         <option value="">Select Admin</option>
-                                        {adminNames.map((spoc, index) => (
+                                        {qCVerifierAdminNames.map((spoc, index) => (
                                             <option key={index} value={spoc.id}>{spoc.name}</option>
                                         ))}
-
                                     </select>
-
                                 </div>
+
                             </div>
                             {![true, "1", 1].includes(formData.updated_json.insta_drug_test) && (
                                 <>
@@ -2098,7 +2106,7 @@ const GenerateReport = () => {
                                                 onChange={handleChange}
                                                 id="" className="border w-full rounded-md p-2 mt-2 capitalize">
                                                 <option value="">Selet Address</option>
-                                                {adminNames.map((spoc, index) => (
+                                                {reportGeneratorAdminNames.map((spoc, index) => (
                                                     <option key={index} value={spoc.id}>{spoc.name}</option>
                                                 ))}
                                             </select>
@@ -2111,9 +2119,9 @@ const GenerateReport = () => {
                                                 onChange={handleChange}
                                                 id="" className="border w-full rounded-md p-2 mt-2 capitalize">
                                                 <option value="">Selet basic entry</option>
-                                                {adminNames.map((spoc, index) => (
+                                                {reportGeneratorAdminNames.map((spoc, index) => (
                                                     <option key={index} value={spoc.id}>{spoc.name}</option>
-                                                ))}                                    </select>
+                                                ))}                                  </select>
 
                                         </div>
                                     </div>
@@ -2125,7 +2133,7 @@ const GenerateReport = () => {
                                                 onChange={handleChange}
                                                 className="border w-full rounded-md p-2 mt-2 capitalize">
                                                 <option value="">Selet Education</option>
-                                                {adminNames.map((spoc, index) => (
+                                                {reportGeneratorAdminNames.map((spoc, index) => (
                                                     <option key={index} value={spoc.id}>{spoc.name}</option>
                                                 ))}                                    </select>
 

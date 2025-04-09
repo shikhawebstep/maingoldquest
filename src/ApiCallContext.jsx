@@ -17,7 +17,6 @@ export const ApiCallProvider = ({ children }) => {
     const [isBranchApiLoading, setIsBranchApiLoading] = useState(false);
     const [loading, setLoading] = useState(false); // ✅ Used in checkAuthentication
     const branchEmail = JSON.parse(localStorage.getItem("branch"))?.email;
-    const API_URL = useApi();
 
     // ✅ Function to handle authentication check
     const checkAuthentication = async () => {

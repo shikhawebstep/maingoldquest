@@ -795,10 +795,14 @@ const ReportCaseTable = () => {
         };
       });
 
-      // Filter out rows with empty values
+      console.log('servicesData', servicesData);
+      console.log('secondTableData', secondTableData);
+
       const filteredSecondTableData = secondTableData.filter(row =>
-        row.component !== 'NIL' && row.source !== 'NIL' && row.completedDate !== 'NIL' && row.status !== 'NIL'
+        [row.component, row.source, row.completedDate, row.status].some(value => value !== 'NIL')
       );
+
+      console.log('filteredSecondTableData', filteredSecondTableData);
 
 
       // Generate the Second Table
@@ -810,41 +814,69 @@ const ReportCaseTable = () => {
           [
             {
               content: 'REPORT COMPONENT',
+              rowSpan: 2,
               styles: {
                 halign: 'center',
+                valign: 'middle', // <== Vertically center text
                 fillColor: "#6495ed",
-                textColor: [0, 0, 0],
-                lineWidth: 0.4,
+                textColor: [255, 255, 255],
                 fontStyle: 'bold',
-                lineWidth: 0.5, // Border width
-                cellPadding: 3, // Padding inside the cell
-                lineColor: [100, 149, 237], // Border color
+                cellPadding: 3,
               },
-
             },
-
             {
               content: 'INFORMATION SOURCE',
-              styles: { halign: 'center', fillColor: "#6495ed", textColor: [0, 0, 0], lineWidth: 0.2, fontStyle: 'bold', },
-
+              rowSpan: 2,
+              styles: {
+                halign: 'center',
+                valign: 'middle', // <== Vertically center text
+                fillColor: "#6495ed",
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+              },
             },
             {
-              content: 'COMPONENT STATUS', colSpan: 2,
-              styles: { halign: 'center', fillColor: "#6495ed", textColor: [0, 0, 0], lineWidth: 0.4, fontStyle: 'bold' },
+              content: 'COMPONENT STATUS',
+              colSpan: 2,
+              styles: {
+                halign: 'center',
+                valign: 'middle',
+                fillColor: "#6495ed",
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+              },
             },
           ],
           [
-            { content: '', styles: { halign: 'center', fillColor: "#6495ed", lineColor: [100, 149, 237], textColor: [0, 0, 0], fontStyle: 'bold' } },
-            { content: '', styles: { halign: 'center', fillColor: "#6495ed", textColor: [0, 0, 0], lineColor: [255, 255, 255], fontStyle: 'bold' } },
-            { content: 'Completed Date', styles: { halign: 'center', fillColor: "#6495ed", lineColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: 0.4, fontStyle: 'bold' } },
-            { content: 'Verification Status', styles: { halign: 'center', fillColor: "#6495ed", lineColor: [255, 255, 255], textColor: [0, 0, 0], lineWidth: 0.4, fontStyle: 'bold' } },
+            // Only include cells under the colSpan above
+            {
+              content: 'COMPLETED DATE',
+              styles: {
+                halign: 'center',
+                fillColor: "#6495ed",
+                textColor: [255, 255, 255],
+                lineWidth: 0.4,
+                fontStyle: 'bold',
+              },
+            },
+            {
+              content: 'VERIFICATION STATUS',
+              styles: {
+                halign: 'center',
+                fillColor: "#6495ed",
+                textColor: [255, 255, 255],
+                lineWidth: 0.4,
+                fontStyle: 'bold',
+              },
+            },
           ]
         ],
         body: filteredSecondTableData.map(row => {
           // Set text color based on verification status
           let statusColor;
-          let statusText = row.status.replace(/^completed_/, '').toUpperCase();  // Remove 'completed_' and convert to uppercase
+          let statusText = row.status.replace(/^completed_/, '').toUpperCase(); // Remove 'completed_' and convert to uppercase
 
+          // Determine the color based on status
           switch (statusText.toLowerCase()) {
             case 'green':
               statusColor = { textColor: 'green' }; // Green text
@@ -866,17 +898,19 @@ const ReportCaseTable = () => {
               break;
           }
 
-          // Return the row with dynamic styles for 'verification status'
-          return [
-            row.component,
-            row.source,
-            row.completedDate, // Show completedDate in its own column
-            {
-              content: statusText, // Show only the color name (e.g., GREEN, RED, etc.)
-              styles: { halign: 'center', fontStyle: 'bold', ...statusColor } // Apply dynamic text color
-            },
-          ];
-        }),
+          // Only return a row if the component is not 'NIL'
+          if (row.component !== 'NIL') {
+            return [
+              row.component || 'NIL',
+              row.source || 'NIL',
+              row.completedDate || 'NIL', // Show completedDate in its own column
+              {
+                content: statusText, // Show only the color name (e.g., GREEN, RED, etc.)
+                styles: { halign: 'center', fontStyle: 'bold', ...statusColor } // Apply dynamic text color
+              },
+            ];
+          }
+        }).filter(Boolean), // Filter out undefined rows from the map (if any)
 
         styles: {
           cellPadding: 2,
@@ -891,13 +925,13 @@ const ReportCaseTable = () => {
         headStyles: {
           fillColor: [61, 117, 166],
           textColor: [0, 0, 0],
-          lineWidth: 0.4,
+          lineWidth: 0.3,
           fontStyle: 'bold',
-          lineColor: [255, 255, 255],
+          lineColor: [61, 117, 166],
         },
         bodyStyles: {
           lineColor: [61, 117, 166],
-          lineWidth: 0.4,
+          lineWidth: 0.3,
         },
         columnStyles: {
           0: { halign: 'left' },
@@ -907,12 +941,15 @@ const ReportCaseTable = () => {
         },
       });
 
+
       addFooter(doc);
       const pageHeight = doc.internal.pageSize.height;
       yPosition = doc.lastAutoTable.finalY || 0; // Current Y position
 
 
       // Check if adding the space will exceed the page height
+
+
       if (yPosition + 70 > pageHeight) {
         addFooter(doc);  // Add the footer before adding a new page
         doc.addPage();   // Add a new page
@@ -1083,7 +1120,6 @@ const ReportCaseTable = () => {
             values: valuesObj,
           });
         });
-
         const tableData = serviceData.map((data) => {
           if (!data || !data.values) {
             return null;
@@ -1097,11 +1133,16 @@ const ReportCaseTable = () => {
           }
 
           const isReportDetailsExist = data.values.isReportDetailsExist;
-          const value = data.values[name];
+          let value = data.values[name];
           const reportDetails = data.values[`report_details_${name}`];
 
           if (value === undefined || value === "" || (isReportDetailsExist && !reportDetails)) {
             return null;
+          }
+
+          // Convert value to uppercase only if the key starts with "verification_status"
+          if (name.startsWith("verification_status")) {
+            value = String(value).toUpperCase();
           }
 
           if (isReportDetailsExist && reportDetails) {
