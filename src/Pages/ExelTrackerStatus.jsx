@@ -732,15 +732,15 @@ const AdminChekin = () => {
                 };
             });
 
-            console.log('servicesData',servicesData);
-            console.log('secondTableData',secondTableData);
+            console.log('servicesData', servicesData);
+            console.log('secondTableData', secondTableData);
 
             const filteredSecondTableData = secondTableData.filter(row =>
                 [row.component, row.source, row.completedDate, row.status].some(value => value !== 'NIL')
             );
-            
+
             console.log('filteredSecondTableData', filteredSecondTableData);
-            
+
 
             // Generate the Second Table
 
@@ -812,7 +812,7 @@ const AdminChekin = () => {
                     // Set text color based on verification status
                     let statusColor;
                     let statusText = row.status.replace(/^completed_/, '').toUpperCase(); // Remove 'completed_' and convert to uppercase
-            
+
                     // Determine the color based on status
                     switch (statusText.toLowerCase()) {
                         case 'green':
@@ -834,7 +834,7 @@ const AdminChekin = () => {
                             statusColor = { textColor: '#000000' }; // Default black text if no match
                             break;
                     }
-            
+
                     // Only return a row if the component is not 'NIL'
                     if (row.component !== 'NIL') {
                         return [
@@ -848,7 +848,7 @@ const AdminChekin = () => {
                         ];
                     }
                 }).filter(Boolean), // Filter out undefined rows from the map (if any)
-            
+
                 styles: {
                     cellPadding: 2,
                     fontSize: 10,
@@ -877,7 +877,7 @@ const AdminChekin = () => {
                     3: { halign: 'center' }, // Center alignment for the status column
                 },
             });
-            
+
 
             addFooter(doc);
             const pageHeight = doc.internal.pageSize.height;
@@ -885,8 +885,8 @@ const AdminChekin = () => {
 
 
             // Check if adding the space will exceed the page height
-            
-            
+
+
             if (yPosition + 70 > pageHeight) {
                 addFooter(doc);  // Add the footer before adding a new page
                 doc.addPage();   // Add a new page
@@ -1071,23 +1071,39 @@ const AdminChekin = () => {
 
                     const isReportDetailsExist = data.values.isReportDetailsExist;
                     let value = data.values[name];
-                    const reportDetails = data.values[`report_details_${name}`];
+                    let reportDetails = data.values[`report_details_${name}`];
 
                     if (value === undefined || value === "" || (isReportDetailsExist && !reportDetails)) {
                         return null;
                     }
 
-                    // Convert value to uppercase only if the key starts with "verification_status"
                     if (name.startsWith("verification_status")) {
                         value = String(value).toUpperCase();
                     }
 
-                    if (isReportDetailsExist && reportDetails) {
-                        return [data.label, value, reportDetails];
-                    } else {
-                        return [data.label, value];
+                    function parseDate(value) {
+                        if (typeof value !== "string") return value;
+                    
+                        // Strict check for date-like formats
+                        const isStrictDateFormat =
+                            /^\d{4}-\d{2}-\d{2}$/.test(value) || // YYYY-MM-DD
+                            /^\d{2}\/\d{2}\/\d{4}$/.test(value) || // DD/MM/YYYY or MM/DD/YYYY
+                            /^\d{4}-\d{2}-\d{2}T/.test(value); // ISO 8601
+                    
+                        if (!isStrictDateFormat) return value;
+                    
+                        const parsedDate = new Date(value);
+                        return isNaN(parsedDate) ? value : parsedDate.toLocaleDateString('en-GB').replace(/\//g, '-');
                     }
-                }).filter(Boolean); // Remove null/undefined entries
+                    
+
+
+                    if (isReportDetailsExist && reportDetails) {
+                        return [data.label, parseDate(value), parseDate(reportDetails)];
+                    } else {
+                        return [data.label, parseDate(value)];
+                    }
+                }).filter(Boolean);
 
                 // Skip table rendering if no valid tableData
                 if (tableData.length > 0) {
